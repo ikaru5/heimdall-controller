@@ -1,0 +1,14 @@
+{
+  "name": "@ikaru5/heimdall-controller",
+  "version": "0.1.1",
+  "description": "Structure your REST requests by communicating with contracts.",
+  "license": "MIT",
+  "repository": "ikaru5/heimdall-controller",
+  "main": "index.js",
+  "keywords": [
+    "heimddall",
+    "controller",
+    "REST",
+    "WebSockets"
+  ]
+}
