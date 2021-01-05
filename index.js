@@ -180,7 +180,10 @@ class HeimdallAPI {
       let receivedPackage = Package.buildReceive(rawData, { protocol: protocol })
       let controller = receivedPackage.receiver.split(".").slice(0, -1).join(".") + "Controller"
       let action = receivedPackage.receiver.split(".").slice(-1)[0]
-      if (undefined !== this._controller[controller] && -1 !== this._controller[controller].actions.indexOf(action)) {
+      if (undefined !== this._controller[controller] &&
+          'object' === typeof(this._controller[controller].actions) &&
+          -1 !== this._controller[controller].actions.indexOf(action))
+      {
         this._controller[controller].instance._callAction(action, receivedPackage)
       } else {
         console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller} and ${action} not found.`)

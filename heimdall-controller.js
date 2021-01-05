@@ -2,10 +2,7 @@ import ControllerBase from "./controller-base.js"
 
 export default class HeimdallController extends ControllerBase {
 
-  constructor() {
-    super();
-    this.actions = ["csrf", "error"]
-  }
+  static actions = ["csrf", "error"]
 
   /**
    * Handling of initially received token.
