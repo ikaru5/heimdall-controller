@@ -1,6 +1,6 @@
 {
   "name": "@ikaru5/heimdall-controller",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Structure your REST requests by communicating with contracts.",
   "license": "MIT",
   "repository": "ikaru5/heimdall-controller",

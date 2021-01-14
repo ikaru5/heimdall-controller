@@ -85,6 +85,7 @@ class HeimdallAPI {
         {
           receiver: options.receiver,
           target: options.target,
+          files: options.files,
           port: options.port,
           host: options.host,
           protocol: options.protocol
@@ -123,15 +124,16 @@ class HeimdallAPI {
    * @param port
    * @private
    */
-  _sendOut(payloadJSON, protocol = this.protocol, host = this.host, path = this.path, port = this.port) {
+  _sendOut(payloadJSON, protocol = this.protocol, host = this.host, path = this.path, port = this.port, files) {
     switch (protocol) {
       case "HTTP":
-        this._dispatchPOST(payloadJSON, host, path, port)
+        this._dispatchPOST(payloadJSON, host, path, port, files)
         break
       case "POST":
-        this._dispatchPOST(payloadJSON, host, path, port)
+        this._dispatchPOST(payloadJSON, host, path, port, files)
         break
       case "GET":
+        if (undefined !== files) console.warn(`Unexpected File Input for protocol: ${protocol}`)
         this._dispatchGET(payloadJSON, host, path, port)
         break
       default:
@@ -146,15 +148,29 @@ class HeimdallAPI {
    * @param host
    * @param path
    * @param port
+   * @param files
    * @returns {Promise<void>}
    * @private
    */
-  async _dispatchPOST(payloadJSON, host, path, port) {
+  async _dispatchPOST(payloadJSON, host, path, port, files) {
     try {
       let url = 80 === port ? `${host}${path}` : `${host}:${port}${path}`
-      let headers = {'Content-Type': 'application/json'}
+      let headers = {}
       if (this.handleCSRF) headers["X-CSRF-TOKEN"] = this.csrfToken
-      let response = await fetch(url, {method: "POST", body: payloadJSON, headers: headers})
+      let response
+      if (undefined === files) {
+        headers['Content-Type'] = 'application/json'
+        response = await fetch(url, {method: "POST", body: payloadJSON, headers: headers})
+      } else {
+        let payloadData = new FormData()
+        payloadData.append('file-count', files.length)
+        payloadData.append('_json', payloadJSON)
+        for (let fileId in files) {
+          payloadData.append(`file_${1 + parseInt(fileId)}`, files[fileId])
+        }
+        response = await fetch(url, {method: "POST", body: payloadData, headers: headers})
+      }
+
       let data = await response.json()
       this._receivePackage(data, "HTTP")
     } catch (error) {
@@ -181,8 +197,8 @@ class HeimdallAPI {
       let controller = receivedPackage.receiver.split(".").slice(0, -1).join(".") + "Controller"
       let action = receivedPackage.receiver.split(".").slice(-1)[0]
       if (undefined !== this._controller[controller] &&
-          'object' === typeof(this._controller[controller].actions) &&
-          -1 !== this._controller[controller].actions.indexOf(action))
+        'object' === typeof(this._controller[controller].actions) &&
+        -1 !== this._controller[controller].actions.indexOf(action))
       {
         this._controller[controller].instance._callAction(action, receivedPackage)
       } else {

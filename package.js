@@ -26,6 +26,7 @@ class Package {
     let newPackage = new Package
     newPackage.payload = "function" === typeof payload.toHash ? payload.toHash() : payload
     newPackage.receiver = options.receiver
+    newPackage.files = options.files
     newPackage.path = options.path || heimdall.path
     newPackage.port = options.port || heimdall.port
     newPackage.host = options.host || heimdall.host
@@ -68,7 +69,7 @@ class Package {
       console.error("Trying to send a received package!")
       return false
     }
-    heimdall._sendOut(this._buildJSON(), this.protocol, this.host, this.path, this.port)
+    heimdall._sendOut(this._buildJSON(), this.protocol, this.host, this.path, this.port, this.files)
   }
 
   /**
