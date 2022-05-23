@@ -9,6 +9,7 @@ class ControllerBase {
     this.actions = []
   }
 
+  // TODO I forgot that I implemented this... Need to check if its still relevant
   listenToAction(action, callback) {
     if (this.constructor.actions.includes(action)) {
       if (undefined === this._callbacks[action]) this._callbacks[action] = []
@@ -25,22 +26,34 @@ class ControllerBase {
     console.log(this.constructor.name)
   }
 
-  _callAction(action, receivedPackage) {
+  /**
+   * @typedef ActionData
+   * @property {receivedPackage} Package - raw data with payload
+   * @property {Object} [contract] - contract with assigned received payload, only if provided on action definition
+   */
+
+  /**
+   *
+   * @param action
+   * @param {ActionData} data
+   * @private
+   */
+  _callAction(action, data) {
     if ("function" === typeof this[action]) {
-      this[action](receivedPackage)
+      this[action](data)
     } else {
-      this._defaultAction(action, receivedPackage)
+      this._defaultAction(action, data)
     }
   }
 
-  _defaultAction(action, receivedPackage) {
-    this.callListeners(action, receivedPackage)
+  _defaultAction(action, data) {
+    this.callListeners(action, data)
   }
 
-  callListeners(action, receivedPackage) {
+  callListeners(action, data) {
     if (undefined === this._callbacks[action] || 0 === this._callbacks[action].size) return
     for (let callback of this._callbacks[action]) {
-      callback(receivedPackage)
+      callback(data)
     }
   }
 }

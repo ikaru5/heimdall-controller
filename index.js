@@ -25,16 +25,26 @@ class HeimdallAPI {
    * Load defaults an gives the options to set things up.
    * Also will read default host information if nothing provided. (Not on React Native)
    * If its a simple webapp its completely fine to provide nothing if it fits you.
-   * @param options TODO document all possible configs (do it later since they are not final)
+   * @param path
+   * @param port
+   * @param protocol
+   * @param host
+   * @param handleCSRF
+   * @param afterCSRF
+   * @param contractRequired
+   * @param decorateReceiver
    * @returns {HeimdallAPI} - no need to use your configuration output, since its singleton.
    */
-  init(options = {}) {
+  init({ path = "/api", port, protocol = "HTTP", host,
+         handleCSRF = false, afterCSRF,
+         contractRequired = false, decorateReceiver
+  }) {
     // simply default values, can be changed for a package
-    this.path = options.path || "/api"
-    this.port = options.port
-    this.protocol = "HTTP"
-    this.host = options.host
-    this.handleCSRF = options.handleCSRF || false
+    this.path = path
+    this.port = port
+    this.protocol = protocol
+    this.host = host
+    this.handleCSRF = handleCSRF
     if (typeof window) {
       if (undefined === this.host && undefined === this.port) {
         if (0 === window.location.port.length) {
@@ -52,13 +62,13 @@ class HeimdallAPI {
       }
     }
     this.port = this.port || 80
-    this.contractRequired = options.contractRequired || false
-    this.decorateReceiver = options.decorateReceiver
+    this.contractRequired = contractRequired || false
+    this.decorateReceiver = decorateReceiver
 
     if (this.handleCSRF) {
       this.csrfToken = undefined
       this._getCSRFToken()
-      this._afterCSRF = options.afterCSRF
+      this._afterCSRF = afterCSRF
     }
 
     return this
@@ -79,16 +89,16 @@ class HeimdallAPI {
    * @param {Object} payload
    * @param {Object} options
    */
-  dispatch(payload, options) {
-    let sendPackage =
+  dispatch(payload, { receiver, target, files, port, host, protocol }) {
+    const sendPackage =
       Package.buildSend(payload,
         {
-          receiver: options.receiver,
-          target: options.target,
-          files: options.files,
-          port: options.port,
-          host: options.host,
-          protocol: options.protocol
+          receiver: receiver,
+          target: target,
+          files: files,
+          port: port,
+          host: host,
+          protocol: protocol
         }
       )
 
@@ -107,11 +117,41 @@ class HeimdallAPI {
    * Controller must register itself, so Heimdall knows where to route incoming packages.
    * @param controllerInstance
    * @param controllerName
-   * @param actions
+   * @param {Array<string|Action>} actions
    * @private
    */
   _registerController(controllerInstance, controllerName, actions) {
-    this._controller[controllerName] = { instance: controllerInstance, actions: actions }
+    if (!this._controller[controllerName]) this._controller[controllerName] = {}
+    this._controller[controllerName].instance = controllerInstance
+
+    actions?.forEach(action => this._registerAction(action.controller ?? controllerName, action))
+  }
+
+  /**
+   * @typedef Action
+   * @property {string} name - action name
+   * @property {string} [controller] - overwrite name of controller
+   * @property {Object} [contract] - assign received payload to this contract
+   * @property {function} [to] - callback where action should be passed to
+   * @property {function} [onInvalid] - callback where action should be passed to if contract is invalid
+   * @property {boolean} [validate] - whether should validate contract
+   */
+
+  /**
+   * Register action and the controller, if not already happened.
+   * BUT! without instance -> if its stays without instance, action must have a "to" callback defined!
+   * @param controllerName
+   * @param {string|Action} action
+   * @private
+   */
+  _registerAction(controllerName, action) {
+    if (!this._controller[controllerName]) this._controller[controllerName] = {}
+    if (!this._controller[controllerName].actions) this._controller[controllerName].actions = []
+    if ("string" === typeof action) {
+      this._controller[controllerName].actions.push({ name: action })
+    } else {
+      this._controller[controllerName].actions.push(action)
+    }
   }
 
   /**
@@ -192,31 +232,63 @@ class HeimdallAPI {
   }
 
   _receivePackage(rawData, protocol) {
-    let parseData = (rawData, protocol) => {
-      let receivedPackage = Package.buildReceive(rawData, { protocol: protocol })
-      let controller = receivedPackage.receiver.split(".").slice(0, -1).join(".") + "Controller"
-      let action = receivedPackage.receiver.split(".").slice(-1)[0]
-      if (undefined !== this._controller[controller] &&
-        'object' === typeof(this._controller[controller].actions) &&
-        -1 !== this._controller[controller].actions.indexOf(action))
-      {
-        this._controller[controller].instance._callAction(action, receivedPackage)
+    const parseData = (rawData, protocol, priority = 0) => {
+      const receivedPackage = Package.buildReceive(rawData, { protocol: protocol })
+      const controller = receivedPackage.receiver.split(".").slice(0, -1).join(".") + "Controller"
+      const action = receivedPackage.receiver.split(".").slice(-1)[0]
+      console.info(`Received package priority: ${priority} to ${controller}->${action}`)
+
+      let actionDef = undefined
+      try {
+        actionDef = this._controller[controller].actions.find(a => a.name === action)
+      } catch (e) {
+        // nothing to do here atm
+      }
+
+      if (actionDef &&
+        (
+          (!!this._controller[controller]?.instance && actionDef.name) ||
+          !!actionDef.to
+        )
+      ) {
+        const data = {}
+        data.receivedPackage = receivedPackage
+        if (actionDef.contract) {
+          data.contract = new actionDef.contract()
+          data.contract.assign(receivedPackage.payload)
+          if (actionDef.validate) {
+            if (!data.contract.isValid()) {
+              console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller}->${action} received invalid data for contract ${data.contract.constructor?.name}.`)
+              console.info(data.contract.errors)
+
+              if (actionDef.onInvalid) actionDef.onInvalid(data)
+              return
+            }
+          }
+        }
+
+        if (!!actionDef.to) {
+          actionDef.to(data)
+        } else {
+          this._controller[controller].instance._callAction(actionDef.name, data)
+        }
       } else {
-        console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller} and ${action} not found.`)
+        console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller}->${action} not found.`)
       }
     }
 
     if (undefined === rawData.length) {
       parseData(rawData, protocol)
     } else {
-      let sortedData = rawData.sort((lE, rE) => {
+      // sort by priority if provided
+      const sortedData = rawData.sort((lE, rE) => {
         if (undefined === lE.priority) return -1
         if (undefined === rE.priority) return 1
         return lE.priority < rE.priority ? 1 : -1
       })
-      for (let data of sortedData) {
-        console.log(data.priority)
-        parseData(data, protocol)
+
+      for (const data of sortedData) {
+        parseData(data, protocol, data.priority)
       }
     }
   }

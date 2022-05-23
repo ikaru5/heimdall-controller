@@ -8,7 +8,7 @@ export default class HeimdallController extends ControllerBase {
    * Handling of initially received token.
    * @param {Package} receivedPackage
    */
-  csrf(receivedPackage) {
+  csrf({ receivedPackage }) {
     this._heimdall.csrfToken = receivedPackage.csrfToken
     if (undefined !== this._heimdall._afterCSRF) this._heimdall._afterCSRF()
   }
@@ -17,7 +17,7 @@ export default class HeimdallController extends ControllerBase {
    * Handling of received errors from backend.
    * @param {Package} receivedPackage
    */
-  error(receivedPackage) {
+  error({ receivedPackage }) {
     let error = "Backend failed tp process package:"
     let payload = receivedPackage.payload
     console.log({error, payload})

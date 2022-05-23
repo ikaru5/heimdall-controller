@@ -22,18 +22,18 @@ class Package {
    *  supported options: receiver, path, port, host, protocol, decorate, csrfToken
    * @returns {Package}
    */
-  static buildSend(payload, options = {}) {
+  static buildSend(payload, { receiver, target, files, port, host, protocol, path, csrfToken, decorate }) {
     let newPackage = new Package
     newPackage.payload = "function" === typeof payload.toHash ? payload.toHash() : payload
-    newPackage.receiver = options.receiver
-    newPackage.files = options.files
-    newPackage.path = options.path || heimdall.path
-    newPackage.port = options.port || heimdall.port
-    newPackage.host = options.host || heimdall.host
-    newPackage.csrfToken = options.csrfToken || heimdall.csrfToken
-    newPackage.protocol = options.protocol || heimdall.protocol
+    newPackage.receiver = receiver
+    newPackage.files = files
+    newPackage.path = path || heimdall.path
+    newPackage.port = port || heimdall.port
+    newPackage.host = host || heimdall.host
+    newPackage.csrfToken = csrfToken || heimdall.csrfToken
+    newPackage.protocol = protocol || heimdall.protocol
     newPackage.isReceiving = false
-    if (undefined !== options.decorate || options.decorate) newPackage._decorateSender()
+    decorate && newPackage._decorateSender()
     return newPackage
   }
 
