@@ -33,11 +33,16 @@ class HeimdallAPI {
    * @param afterCSRF
    * @param contractRequired
    * @param decorateReceiver
+   * @param useCustomConnection - use with websockets for example
+   * @param connectCustomConnection - use with websockets for example
+   * @param disconnectAllCustomConnections - use with websockets for example
+   * @param disconnectCustomConnection - use with websockets for example
    * @returns {HeimdallAPI} - no need to use your configuration output, since its singleton.
    */
   init({ path = "/api", port, protocol = "HTTP", host,
          handleCSRF = false, afterCSRF,
-         contractRequired = false, decorateReceiver
+         contractRequired = false, decorateReceiver,
+         useCustomConnection = false, connectCustomConnection, disconnectAllCustomConnections, disconnectCustomConnection
   }) {
     // simply default values, can be changed for a package
     this.path = path
@@ -71,12 +76,56 @@ class HeimdallAPI {
       this._afterCSRF = afterCSRF
     }
 
+    if (useCustomConnection) {
+      this.useCustomConnection = useCustomConnection
+      this._connectCustomConnection = connectCustomConnection
+      this._customCreateReturnCollection = []
+      if (disconnectAllCustomConnections) this._disconnectAllCustomConnections = disconnectAllCustomConnections
+      if (disconnectCustomConnection) this._disconnectCustomConnection = disconnectCustomConnection
+    }
+
     return this
+  }
+
+  listenToCustom(params) {
+    if (!this.useCustomConnection || !this._connectCustomConnection) {
+      console.error(`Could not define channel listener because not enabled or connectCustomConnection not defined. Params: ${params}`)
+      return
+    }
+
+    const connection = this._connectCustomConnection({ params, onConnected: this._connectedToCustom, onDisconnected: this._disconnectedFromCustom, onReceive: this._onCustomReceive })
+    if (connection) this._customCreateReturnCollection.push({ connection, params })
+  }
+
+  stopListenToCustom(params) {
+    console.info("Disconnecting from custom channel with params:")
+    console.info(params)
+    this._disconnectCustomConnection({ params, collection: this._customCreateReturnCollection })
+  }
+
+  disconnectCustoms() {
+    this._disconnectAllCustomConnections()
+  }
+
+  _connectedToCustom = (params) => {
+    console.info("Connected to custom channel with params:")
+    console.info(params)
+  }
+
+  _disconnectedFromCustom = (params) => {
+    this._customCreateReturnCollection = this._customCreateReturnCollection.filter(
+      e => JSON.stringify(e.params) !== JSON.stringify(params)
+    )
+    console.info("Disconnected from custom channel with params:")
+    console.info(params)
+  }
+
+  _onCustomReceive = ({ data, protocol }) => {
+    this._receivePackage(JSON.parse(data), protocol)
   }
 
   /**
    * Use this to handle network errors.
-   * TODO what about Websockets?
    * @param {function} callback
    */
   setConnectionFailureCallback(callback) {
