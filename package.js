@@ -24,7 +24,7 @@ class Package {
    */
   static buildSend(payload, { receiver, target, files, port, host, protocol, path, csrfToken, decorate }) {
     let newPackage = new Package
-    newPackage.payload = "function" === typeof payload.toHash ? payload.toHash() : payload
+    newPackage.payload = "function" === typeof payload.toObject ? payload.toObject() : payload
     newPackage.receiver = receiver
     newPackage.files = files
     newPackage.path = path || heimdall.path
