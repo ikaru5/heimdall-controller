@@ -95,6 +95,7 @@ class HeimdallAPI {
 
     const connection = this._connectCustomConnection({ params, onConnected: this._connectedToCustom, onDisconnected: this._disconnectedFromCustom, onReceive: this._onCustomReceive })
     if (connection) this._customCreateReturnCollection.push({ connection, params })
+    return connection
   }
 
   stopListenToCustom(params) {
@@ -285,7 +286,6 @@ class HeimdallAPI {
       const receivedPackage = Package.buildReceive(rawData, { protocol: protocol })
       const controller = receivedPackage.receiver.split(".").slice(0, -1).join(".") + "Controller"
       const action = receivedPackage.receiver.split(".").slice(-1)[0]
-      console.info(`Received package priority: ${priority} to ${controller}->${action}`)
 
       let actionDef = undefined
       try {
@@ -293,6 +293,10 @@ class HeimdallAPI {
       } catch (e) {
         // nothing to do here atm
       }
+
+      if (!actionDef?.silent) console.info(`Received package priority: ${priority} to ${controller}->${action}`)
+
+
 
       if (actionDef &&
         (
