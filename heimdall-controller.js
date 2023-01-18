@@ -18,7 +18,7 @@ export default class HeimdallController extends ControllerBase {
    * @param {Package} receivedPackage
    */
   error({ receivedPackage }) {
-    let error = "Backend failed tp process package:"
+    let error = "Backend failed to process package:"
     let payload = receivedPackage.payload
     console.log({error, payload})
   }

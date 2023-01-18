@@ -22,7 +22,7 @@ class Package {
    *  supported options: receiver, path, port, host, protocol, decorate, csrfToken
    * @returns {Package}
    */
-  static buildSend(payload, { receiver, target, files, port, host, protocol, path, csrfToken, decorate }) {
+  static buildSend(payload, { receiver, files, port, host, protocol, path, csrfToken, decorate }) {
     let newPackage = new Package
     newPackage.payload = "function" === typeof payload.toObject ? payload.toObject() : payload
     newPackage.receiver = receiver
@@ -89,8 +89,8 @@ class Package {
    * @private
    */
   _decorateSender() {
-    if (undefined !== this.receiver && undefined !== heimdall.decorateReceiver) {
-      this.receiver = heimdall.decorateReceiver(this.receiver)
+    if (undefined !== this.receiver && undefined !== heimdall.decorateForReceiver) {
+      this.receiver = heimdall.decorateForReceiver(this.receiver)
     }
   }
 

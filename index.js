@@ -1,14 +1,11 @@
 import Package from "./package.js"
+import HeimdallController from "./heimdall-controller.js"
+import ControllerBase from "./controller-base.js"
+
 /**
  * Base Class
  * Needs to be initialized before usage!
  * Import in your index.js (or your equivalent) with at least heimdall.init()
- *
- * TODO:
- * - CSRF handling
- * - CSRF outsource
- * - Binary payload handling for pictures etc - idea: separate action like api_binary
- * - Websockets support
  */
 class HeimdallAPI {
 
@@ -22,31 +19,28 @@ class HeimdallAPI {
   }
 
   /**
-   * Load defaults an gives the options to set things up.
-   * Also will read default host information if nothing provided. (Not on React Native)
-   * If its a simple webapp its completely fine to provide nothing if it fits you.
-   * @param path
-   * @param port
-   * @param protocol
-   * @param host
-   * @param handleCSRF
-   * @param afterCSRF
-   * @param contractRequired
-   * @param decorateReceiver
-   * @param useCustomConnection - use with websockets for example
-   * @param connectCustomConnection - use with websockets for example
-   * @param disconnectAllCustomConnections - use with websockets for example
-   * @param disconnectCustomConnection - use with websockets for example
+   * Load defaults and gives the options to set things up.
+   * Will also read default host information if nothing provided. (Not on React Native)
+   * If it is a simple webapp its completely fine to provide nothing if it fits you.
+   * @param {string} path
+   * @param {number} port
+   * @param {string} protocol - TODO better name?
+   * @param {string} host
+   * @param {boolean} handleCSRF
+   * @param {undefined | function} afterCSRF
+   * @param {undefined | function} decorateForReceiver - optional function to decorate the payload before sending it out
+   * @param {boolean} useCustomConnection - use some custom protocol like websockets for example
+   * @param {undefined | function} connectCustomConnection - callback to connect to a custom connection (e.g. websockets)
+   * @param {undefined | function} disconnectAllCustomConnections - callback to disconnect from all custom connections (e.g. websockets)
+   * @param {undefined | function} disconnectCustomConnection - callback to disconnect from a custom connection (e.g. websockets)
    * @returns {HeimdallAPI} - no need to use your configuration output, since its singleton.
    */
   init({ path = "/api", port, protocol = "HTTP", host,
-         handleCSRF = false, afterCSRF,
-         contractRequired = false, decorateReceiver,
+         handleCSRF = false, afterCSRF, decorateForReceiver,
          useCustomConnection = false, connectCustomConnection, disconnectAllCustomConnections, disconnectCustomConnection
   }) {
     // simply default values, can be changed for a package
     this.path = path
-    this.port = port
     this.protocol = protocol
     this.host = host
     this.handleCSRF = handleCSRF
@@ -67,8 +61,7 @@ class HeimdallAPI {
       }
     }
     this.port = this.port || 80
-    this.contractRequired = contractRequired || false
-    this.decorateReceiver = decorateReceiver
+    this.decorateForReceiver = decorateForReceiver
 
     if (this.handleCSRF) {
       this.csrfToken = undefined
@@ -89,11 +82,17 @@ class HeimdallAPI {
 
   listenToCustom(params) {
     if (!this.useCustomConnection || !this._connectCustomConnection) {
-      console.error(`Could not define channel listener because not enabled or connectCustomConnection not defined. Params: ${params}`)
+      console.error(
+        "Could not define channel listener because not enabled or connectCustomConnection not defined." +
+        "Make sure you used the init method with useCustomConnection set to true and connectCustomConnection defined."
+      )
       return
     }
 
-    const connection = this._connectCustomConnection({ params, onConnected: this._connectedToCustom, onDisconnected: this._disconnectedFromCustom, onReceive: this._onCustomReceive })
+    const connection = this._connectCustomConnection(
+      { params, onConnected: this._connectedToCustom, onDisconnected: this._disconnectedFromCustom, onReceive: this._onCustomReceive }
+    )
+
     if (connection) this._customCreateReturnCollection.push({ connection, params })
     return connection
   }
@@ -134,17 +133,27 @@ class HeimdallAPI {
   }
 
   /**
+   * @typedef DispatchOptions
+   * @property {string} receiver - Backend Endpoint like User.Show
+   * @property {Array} [files] - files to send (picture, video, ...)
+   * @property {string} [path] - override the default path
+   * @property {string} [port] - override default port
+   * @property {string} [host] - override default host
+   * @property {string} [protocol] - override default protocol
+   */
+
+  /**
    * Build a heimdall formed package with provided payload and dispatch it to the backend.
    * Payload can be a contract and heimdall will extract the JSON itself. ;)
    * @param {Object} payload
-   * @param {Object} options
+   * @param {DispatchOptions} options
    */
-  dispatch(payload, { receiver, target, files, port, host, protocol }) {
+  dispatch(payload, { receiver, path, files, port, host, protocol }) {
     const sendPackage =
       Package.buildSend(payload,
         {
           receiver: receiver,
-          target: target,
+          path: path,
           files: files,
           port: port,
           host: host,
@@ -181,10 +190,10 @@ class HeimdallAPI {
    * @typedef Action
    * @property {string} name - action name
    * @property {string} [controller] - overwrite name of controller
-   * @property {Object} [contract] - assign received payload to this contract
+   * @property {Object} [contract] - assign received payload to an instance of this contract class
    * @property {function} [to] - callback where action should be passed to
    * @property {function} [onInvalid] - callback where action should be passed to if contract is invalid
-   * @property {boolean} [validate] - whether should validate contract
+   * @property {boolean} [validate] - validate contract
    */
 
   /**
@@ -350,3 +359,4 @@ class HeimdallAPI {
 
 const heimdallAPI = new HeimdallAPI()
 export default heimdallAPI
+export { HeimdallController, ControllerBase }

@@ -22,8 +22,9 @@ class ControllerBase {
   }
 
   _registerRoutes() {
-    heimdall._registerController(this, this.constructor.name, this.constructor.actions)
-    console.log(this.constructor.name)
+    const name = this["name"] || this.constructor.name
+    heimdall._registerController(this, name, this.constructor.actions)
+    console.log(name)
   }
 
   /**
