@@ -211,7 +211,7 @@ Properties of Actions:
 @property {Object} [contract] - assign received payload to an instance of this contract class
 @property {function} [to] - callback where action should be passed to
 @property {function} [onInvalid] - callback where action should be passed to if contract is invalid
-@property {boolean} [validate] - validate contract
+@property {boolean} [validate] - validate contract, default: true
 ```
 
 ## Example Backend Implementations

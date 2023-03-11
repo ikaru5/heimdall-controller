@@ -15,7 +15,9 @@ class HeimdallAPI {
    */
   constructor() {
     this._controller = {}
-    this.connectionFailureCallback = function (error) { console.error(`Network Error: ${error}`) }
+    this.connectionFailureCallback = function (error) {
+      console.error(`Network Error: ${error}`)
+    }
   }
 
   /**
@@ -35,10 +37,19 @@ class HeimdallAPI {
    * @param {undefined | function} disconnectCustomConnection - callback to disconnect from a custom connection (e.g. websockets)
    * @returns {HeimdallAPI} - no need to use your configuration output, since its singleton.
    */
-  init({ path = "/api", port, protocol = "HTTP", host,
-         handleCSRF = false, afterCSRF, decorateForReceiver,
-         useCustomConnection = false, connectCustomConnection, disconnectAllCustomConnections, disconnectCustomConnection
-  }) {
+  init({
+         path = "/api",
+         port,
+         protocol = "HTTP",
+         host,
+         handleCSRF = false,
+         afterCSRF,
+         decorateForReceiver,
+         useCustomConnection = false,
+         connectCustomConnection,
+         disconnectAllCustomConnections,
+         disconnectCustomConnection
+       }) {
     // simply default values, can be changed for a package
     this.path = path
     this.protocol = protocol
@@ -90,17 +101,22 @@ class HeimdallAPI {
     }
 
     const connection = this._connectCustomConnection(
-      { params, onConnected: this._connectedToCustom, onDisconnected: this._disconnectedFromCustom, onReceive: this._onCustomReceive }
+      {
+        params,
+        onConnected: this._connectedToCustom,
+        onDisconnected: this._disconnectedFromCustom,
+        onReceive: this._onCustomReceive
+      }
     )
 
-    if (connection) this._customCreateReturnCollection.push({ connection, params })
+    if (connection) this._customCreateReturnCollection.push({connection, params})
     return connection
   }
 
   stopListenToCustom(params) {
     console.info("Disconnecting from custom channel with params:")
     console.info(params)
-    this._disconnectCustomConnection({ params, collection: this._customCreateReturnCollection })
+    this._disconnectCustomConnection({params, collection: this._customCreateReturnCollection})
   }
 
   disconnectCustoms() {
@@ -120,7 +136,7 @@ class HeimdallAPI {
     console.info(params)
   }
 
-  _onCustomReceive = ({ data, protocol }) => {
+  _onCustomReceive = ({data, protocol}) => {
     this._receivePackage(JSON.parse(data), protocol)
   }
 
@@ -148,7 +164,7 @@ class HeimdallAPI {
    * @param {Object} payload
    * @param {DispatchOptions} options
    */
-  dispatch(payload, { receiver, path, files, port, host, protocol }) {
+  dispatch(payload, {receiver, path, files, port, host, protocol}) {
     const sendPackage =
       Package.buildSend(payload,
         {
@@ -169,7 +185,7 @@ class HeimdallAPI {
    * @private
    */
   _getCSRFToken() {
-    Package.buildSend({}, { receiver: "Heimdall.CSRF", protocol: "GET" }).sendOut()
+    Package.buildSend({}, {receiver: "Heimdall.CSRF", protocol: "GET"}).sendOut()
   }
 
   /**
@@ -207,7 +223,7 @@ class HeimdallAPI {
     if (!this._controller[controllerName]) this._controller[controllerName] = {}
     if (!this._controller[controllerName].actions) this._controller[controllerName].actions = []
     if ("string" === typeof action) {
-      this._controller[controllerName].actions.push({ name: action })
+      this._controller[controllerName].actions.push({name: action})
     } else {
       this._controller[controllerName].actions.push(action)
     }
@@ -292,10 +308,11 @@ class HeimdallAPI {
 
   _receivePackage(rawData, protocol) {
     const parseData = (rawData, protocol, priority = 0) => {
-      const receivedPackage = Package.buildReceive(rawData, { protocol: protocol })
+      const receivedPackage = Package.buildReceive(rawData, {protocol: protocol})
       const controller = receivedPackage.receiver.split(".").slice(0, -1).join(".") + "Controller"
       const action = receivedPackage.receiver.split(".").slice(-1)[0]
 
+      // lookup definition for action
       let actionDef = undefined
       try {
         actionDef = this._controller[controller].actions.find(a => a.name === action)
@@ -305,37 +322,41 @@ class HeimdallAPI {
 
       if (!actionDef?.silent) console.info(`Received package priority: ${priority} to ${controller}->${action}`)
 
+      // VALIDATE ACTION DEFINITION
+      const isActionDefValid = actionDef && (
+        (!!this._controller[controller]?.instance && actionDef.name) ||
+        !!actionDef.to
+      )
 
+      if (!isActionDefValid) {
+        console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller}->${action} not found.`)
+        return
+      }
 
-      if (actionDef &&
-        (
-          (!!this._controller[controller]?.instance && actionDef.name) ||
-          !!actionDef.to
-        )
-      ) {
-        const data = {}
-        data.receivedPackage = receivedPackage
-        if (actionDef.contract) {
-          data.contract = new actionDef.contract()
-          data.contract.assign(receivedPackage.payload)
-          if (actionDef.validate) {
-            if (!data.contract.isValid()) {
-              console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller}->${action} received invalid data for contract ${data.contract.constructor?.name}.`)
-              console.info(data.contract.errors)
+      // PREPARE DATA FOR ACTION
+      const data = {}
+      data.receivedPackage = receivedPackage
 
-              if (actionDef.onInvalid) actionDef.onInvalid(data)
-              return
-            }
+      // if contract defined build instance
+      if (actionDef.contract) {
+        data.contract = new actionDef.contract()
+        data.contract.assign(receivedPackage.payload)
+        if (actionDef.validate !== false) { // set validate explicit to false if you don't want to validate your contract
+          if (!data.contract.isValid()) {
+            console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller}->${action} received invalid data for contract ${data.contract.constructor?.name}.`)
+            console.info(data.contract.errors)
+
+            if (actionDef.onInvalid) actionDef.onInvalid(data)
+            return
           }
         }
+      }
 
-        if (!!actionDef.to) {
-          actionDef.to(data)
-        } else {
-          this._controller[controller].instance._callAction(actionDef.name, data)
-        }
+      // CALL DEFINED ACTION
+      if (!!actionDef.to) {
+        actionDef.to(data)
       } else {
-        console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller}->${action} not found.`)
+        this._controller[controller].instance._callAction(actionDef.name, data)
       }
     }
 
@@ -359,4 +380,4 @@ class HeimdallAPI {
 
 const heimdallAPI = new HeimdallAPI()
 export default heimdallAPI
-export { HeimdallController, ControllerBase }
+export {HeimdallController, ControllerBase}
