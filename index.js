@@ -342,7 +342,7 @@ class HeimdallAPI {
         data.contract = new actionDef.contract()
         data.contract.assign(receivedPackage.payload)
         if (actionDef.validate !== false) { // set validate explicit to false if you don't want to validate your contract
-          if (!data.contract.isValid()) {
+          if (!data.contract.isValid(actionDef.context)) {
             console.error(`Path for ${receivedPackage.receiver}, which was interpreted as ${controller}->${action} received invalid data for contract ${data.contract.constructor?.name}.`)
             console.info(data.contract.errors)
 

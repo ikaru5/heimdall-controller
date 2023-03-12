@@ -183,7 +183,7 @@ class UserController extends ControllerBase {
   
   static actions = [
     { name: "failed", contract: GenericContract, to: failedOperation, validate: false },
-    { name: "showSuccess", contract: UserBaseContract, to: showSuccessOperation, onInvalid: genericOperation },
+    { name: "showSuccess", contract: UserBaseContract, to: showSuccessOperation, onInvalid: genericOperation, context: "show" },
     { name: "deleteSuccess", controller: "SomeOtherControllerName", to: genericOperation },
     { name: "signupSuccess", to: signupSuccessOperation },
     { name: "loginSuccess", to: loginSuccessOperation },
@@ -212,6 +212,7 @@ Properties of Actions:
 @property {function} [to] - callback where action should be passed to
 @property {function} [onInvalid] - callback where action should be passed to if contract is invalid
 @property {boolean} [validate] - validate contract, default: true
+@property {boolean} [context] - validation context, will be passed to contract.isValid()
 ```
 
 ## Example Backend Implementations
