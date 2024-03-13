@@ -1,12 +1,12 @@
 {
   "name": "@ikaru5/heimdall-controller",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Structure your REST requests by communicating with contracts.",
   "license": "MIT",
   "repository": "ikaru5/heimdall-controller",
   "main": "index.js",
   "dependencies": {
-    "@ikaru5/heimdall-contract": "^0.3.0"
+    "@ikaru5/heimdall-contract": "^0.4.0"
   },
   "keywords": [
     "heimddall",
